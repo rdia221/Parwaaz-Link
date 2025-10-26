@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parwaaz Link - Ultimate Travel Companion</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, orderBy, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Export necessary modules to the global scope for use in the main script block
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, orderBy, deleteDoc, writeBatch, setLogLevel, serverTimestamp };
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css'); /* For Icons */
+        
+        /* Custom styles inspired by rich Pakistani traditional colors (Emerald, Saffron/Gold, Deep Blue) */
+        :root {
+            --color-primary: #047857; /* Emerald-700 */
+            --color-secondary: #D97706; /* Amber-600 (Gold accent) */
+            --color-tourist: #2563EB; /* Blue-700 */
+            --color-native: #10B981;  /* Emerald-500 */
+            --color-accent: #34D399; /* Light Emerald */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+
+        .chat-bubble {
+            max-width: 85%;
+            padding: 12px 18px;
+            border-radius: 24px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .tourist-bubble {
+            background-color: var(--color-tourist);
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+        }
+
+        .native-bubble {
+            background-color: var(--color-native);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+        }
+
+        .native-text-urdu {
+            font-family: 'Noto Nastaliq Urdu', serif;
+            direction: rtl;
+            text-align: right;
+            font-size: 1.15rem;
+        }
+
+        .action-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .action-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Style for the pulsing recording state */
+        .mic-recording {
+            animation: pulse-red 1s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .tab-button.active {
+            color: var(--color-primary);
+            border-bottom: 3px solid var(--color-primary);
+            font-weight: 600;
+        }
+
+        /* Mock Map Styling */
+        #mock-map {
+            background: linear-gradient(135deg, #10b98130 0%, #34d39920 100%);
+            border: 2px solid var(--color-native);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .mock-location {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: absolute;
+            animation: pulse-blue 2s infinite;
+            border: 2px solid white;
+        }
+        #current-location {
+            background-color: var(--color-tourist);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #destination-location {
+            background-color: #EF4444; /* Red */
+            top: 20%;
+            left: 70%;
+        }
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+
+        /* Learning Card */
+        .lesson-card {
+            border-left: 5px solid var(--color-secondary);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col h-[95vh] lg:h-[850px] overflow-hidden">
+        
+        <!-- Header -->
+        <header class="p-5 border-b border-gray-100 bg-white">
+            <h1 class="text-3xl font-extrabold text-gray-800 flex items-center">
+                <i class="fa-solid fa-plane-departure text-emerald-600 mr-3"></i>
+                Parwaaz Link
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">Your Cultural & Language Companion for Pakistan</p>
+        </header>
+        
+        <!-- Navigation Tabs -->
+        <nav class="flex justify-around border-b border-gray-200 bg-gray-50">
+            <button class="tab-button active p-3 flex-1 text-sm md:text-base" data-view="translator" onclick="showView('translator')">
+                <i class="fa-solid fa-microphone mr-2"></i>Translator
+            </button>
+            <button class="tab-button p-3 flex-1 text-sm md:text-base" data-view="journal" onclick="showView('journal')">
+                <i class="fa-solid fa-book-open mr-2"></i>Journal
+            </button>
+            <button class="tab-button p-3 flex-1 text-sm md:text-base" data-view="learn" onclick="showView('learn')">
+                <i class="fa-solid fa-graduation-cap mr-2"></i>Learn
+            </button>
+            <button class="tab-button p-3 flex-1 text-sm md:text-base" data-view="navigate" onclick="showView('navigate')">
+                <i class="fa-solid fa-map-location-dot mr-2"></i>Navigate
+            </button>
+            <button class="tab-button p-3 flex-1 text-sm md:text-base" data-view="ar-guide" onclick="showView('ar-guide')">
+                <i class="fa-solid fa-camera-retro mr-2"></i>AR Guide
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="content-container" class="flex-grow overflow-y-auto bg-gray-50 p-6">
+            
+            <!-- 1. TRANSLATOR VIEW (Default) -->
+            <div id="translator-view" class="view">
+                <!-- Language Selection -->
+                <div class="bg-white p-4 rounded-xl shadow-lg mb-6">
+                    <h2 class="text-lg font-bold mb-3 text-gray-800">1. Select Conversation Languages</h2>
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <label for="tourist-lang" class="block text-sm font-medium text-blue-700 mb-1">Tourist (Your Language)</label>
+                            <select id="tourist-lang" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" onchange="updateTouristUi()">
+                                <option value="auto-detect">🌎 Auto-Detect</option>
+                                <option value="en-US" selected>English (US)</option>
+                                <option value="hi-IN">Hindi</option>
+                                <option value="es-ES">Spanish</option>
+                                <option value="fr-FR">French</option>
+                                <option value="ar-EG">Arabic</option>
+                                <option value="zh-CN">Chinese</option>
+                                <option value="ja-JP">Japanese</option>
+                                <option value="de-DE">German</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label for="native-lang" class="block text-sm font-medium text-emerald-700 mb-1">Native (Regional Language)</label>
+                            <select id="native-lang" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" onchange="updateNativeUi()">
+                                <option value="auto-detect">🌎 Auto-Detect</option>
+                                <option value="ur-PK">Urdu</option>
+                                <option value="ps-PK">Pashto</option>
+                                <option value="pa-PK">Punjabi</option>
+                                <option value="sd-PK">Sindhi</option>
+                                <option value="fa-IR">Farsi (Persian)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div id="chat-history" class="bg-white p-4 rounded-xl shadow-lg h-[40vh] overflow-y-auto mb-6 flex flex-col">
+                    <div class="flex flex-col items-center justify-center py-4 border-b border-gray-100 mb-4">
+                        <div class="text-center text-gray-500 text-sm italic">
+                            <p>Tap the mic button below to start a conversation.</p>
+                            <p class="mt-1">Current Mode: <span id="current-tourist-label" class="text-blue-600 font-semibold">English (US)</span> ↔️ <span id="current-native-label" class="text-emerald-600 font-semibold">Urdu</span></p>
+                        </div>
+                    </div>
+                    <!-- Conversation bubbles will be inserted here -->
+                </div>
+
+                <!-- Input Area (Speech) -->
+                <section class="p-4 border-t border-gray-100 bg-white rounded-xl shadow-inner">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        
+                        <!-- Tourist Input (Speech) -->
+                        <div class="flex-1">
+                            <button id="tourist-mic-btn" class="action-button bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 font-semibold flex items-center justify-center disabled:opacity-50 w-full h-16" onclick="startTouristSpeech()" title="Tap to start speaking">
+                                <i class="fa-solid fa-microphone-lines w-6 h-6 mr-2"></i>
+                                <span id="tourist-mic-text">Speak in English</span>
+                            </button>
+                        </div>
+
+                        <!-- Native Input (Speech) -->
+                        <div class="flex-1">
+                            <button id="native-mic-btn" class="action-button bg-emerald-600 text-white p-3 rounded-xl hover:bg-emerald-700 font-semibold flex items-center justify-center disabled:opacity-50 w-full h-16" onclick="startNativeSpeech()" title="بات کرنے کے لیے دبائیں">
+                                <i class="fa-solid fa-microphone-lines w-6 h-6 mr-2"></i>
+                                <span id="native-mic-text" class="native-text-urdu">اردو میں بات کریں</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- 2. JOURNAL VIEW -->
+            <div id="journal-view" class="view hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Conversation Journal</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <p class="text-gray-600">Your saved conversations are listed below.</p>
+                    <button id="clear-journal-btn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50" onclick="confirmClearJournal()">
+                        <i class="fa-solid fa-trash-can mr-2"></i>Clear All
+                    </button>
+                </div>
+                <div id="journal-list" class="space-y-4">
+                    <p class="text-center text-gray-500 italic" id="journal-loading-status">Loading journal entries...</p>
+                    <!-- Journal entries will be inserted here -->
+                </div>
+            </div>
+
+            <!-- 3. LEARN VIEW -->
+            <div id="learn-view" class="view hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Learning Mode: Micro-Lessons</h2>
+                
+                <div class="bg-white p-4 rounded-xl shadow-lg mb-6 flex justify-between items-center lesson-card">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Daily Learning Streak:</p>
+                        <p id="streak-counter" class="text-4xl font-extrabold text-amber-600">0</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">Last Completed:</p>
+                        <p id="last-completed-date" class="font-semibold text-gray-700">Never</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4" id="lesson-cards-container">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Lesson: Essential Greetings (Urdu)</h3>
+                    <!-- Mock Lessons -->
+                    <div class="bg-white p-4 rounded-lg shadow lesson-card">
+                        <p class="font-bold text-lg text-emerald-700">Hello / Peace Be Upon You</p>
+                        <p class="text-xl native-text-urdu mt-1">اسلام و علیکم (Assalam-o-Alaikum)</p>
+                        <p class="text-gray-500 text-sm">Use this universal greeting.</p>
+                        <button class="mt-3 bg-emerald-500 text-white px-4 py-1 rounded-full text-sm hover:bg-emerald-600 transition-colors" data-lesson-id="greeting_1" onclick="completeLesson(this)">Mark Complete</button>
+                        <span class="text-sm text-green-600 ml-3 hidden"><i class="fa-solid fa-check-circle"></i> Completed!</span>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg shadow lesson-card">
+                        <p class="font-bold text-lg text-emerald-700">Thank You</p>
+                        <p class="text-xl native-text-urdu mt-1">شکریہ (Shukriya)</p>
+                        <p class="text-gray-500 text-sm">A common expression of gratitude.</p>
+                        <button class="mt-3 bg-emerald-500 text-white px-4 py-1 rounded-full text-sm hover:bg-emerald-600 transition-colors" data-lesson-id="greeting_2" onclick="completeLesson(this)">Mark Complete</button>
+                        <span class="text-sm text-green-600 ml-3 hidden"><i class="fa-solid fa-check-circle"></i> Completed!</span>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg shadow lesson-card">
+                        <p class="font-bold text-lg text-emerald-700">How are you?</p>
+                        <p class="text-xl native-text-urdu mt-1">آپ کیسے ہیں؟ (Aap kaisay hain?)</p>
+                        <p class="text-gray-500 text-sm">Used for checking on someone's well-being.</p>
+                        <button class="mt-3 bg-emerald-500 text-white px-4 py-1 rounded-full text-sm hover:bg-emerald-600 transition-colors" data-lesson-id="greeting_3" onclick="completeLesson(this)">Mark Complete</button>
+                        <span class="text-sm text-green-600 ml-3 hidden"><i class="fa-solid fa-check-circle"></i> Completed!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. NAVIGATE VIEW (MOCK) -->
+            <div id="navigate-view" class="view hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">GPS & Ride Finder (Mock)</h2>
+                
+                <div id="mock-map" class="h-64 rounded-xl shadow-lg mb-6 flex items-center justify-center text-gray-700 font-bold">
+                    <div id="current-location" class="mock-location" title="Your Current Location"></div>
+                    <div id="destination-location" class="mock-location" title="Your Destination"></div>
+                    <p class="absolute top-4 left-4 text-sm text-gray-800 font-semibold">Simulated GPS Map of Lahore</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-700">Set Destination</h3>
+                    <div class="flex gap-3 mb-4">
+                        <input type="text" id="destination-input" placeholder="Enter destination (e.g., Badshahi Mosque)" class="flex-1 p-2 border rounded-lg">
+                        <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors" onclick="searchRides()">Find Rides</button>
+                    </div>
+
+                    <div id="rides-results" class="space-y-3">
+                        <p class="text-gray-500 italic">Enter a destination and click "Find Rides" to see simulated prices.</p>
+                        <!-- Ride results will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. AR GUIDE VIEW (MOCK) -->
+            <div id="ar-guide-view" class="view hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">AR Cultural Guide (Simulated)</h2>
+                
+                <div class="bg-gray-800 h-64 rounded-xl shadow-lg mb-6 flex items-center justify-center relative">
+                    <p class="text-white text-lg font-semibold absolute top-4 left-4"><i class="fa-solid fa-video"></i> Live Camera Feed (Simulated)</p>
+                    <i class="fa-solid fa-camera text-gray-600 text-6xl"></i>
+                    <div class="absolute bottom-4 p-2 bg-white/90 rounded-xl shadow-xl w-11/12 text-center text-gray-800">
+                        <p>Focus your camera on a sign or cultural object to receive information.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-700">Simulated AR Scan Result</h3>
+                    
+                    <button class="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors mb-4" onclick="simulateArScan()">Simulate Scan</button>
+
+                    <div id="ar-scan-output" class="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <p class="text-gray-500 italic">Click "Simulate Scan" to see a mock result for a cultural item or sign.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <div id="status-message" class="p-3 text-center bg-yellow-100 text-yellow-800 hidden font-medium rounded-lg mt-4"></div>
+        </main>
+        
+    </div>
+
+    <script>
+        // --- GLOBAL CONFIG & STATE ---
+        const apiKey = "AIzaSyDkB1oMS-_JqTeHc-qswIM4Hq-JMGDcy0U"; // Canvas will automatically provide the key
+        const API_TEXT_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        const API_TTS_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+        // Language Code to Name Mapping
+        const LANG_MAP = {
+            'auto-detect': 'Auto-Detect',
+            'en-US': 'English (US)', 'hi-IN': 'Hindi (IN)',
+            'es-ES': 'Spanish (ES)', 'fr-FR': 'French (FR)',
+            'ar-EG': 'Arabic (EG)', 'zh-CN': 'Chinese (CN)',
+            'ja-JP': 'Japanese (JP)', 'de-DE': 'German (DE)',
+            'ru-RU': 'Russian (RU)', 'ko-KR': 'Korean (KR)',
+            'ur-PK': 'Urdu', 'ps-PK': 'Pashto', 
+            'pa-PK': 'Punjabi', 'sd-PK': 'Sindhi', 'fa-IR': 'Farsi'
+        };
+
+        // Language Voice Mappings 
+        const VOICE_MAP = {
+            'en-US': 'Kore', 'hi-IN': 'Kore', 'es-ES': 'Charon', 
+            'fr-FR': 'Fenrir', 'ar-EG': 'Orus', 'zh-CN': 'Leda',
+            'ja-JP': 'Leda', 'de-DE': 'Charon', 'ru-RU': 'Fenrir', 
+            'ko-KR': 'Leda', 
+            // Native languages (using Achird for regional support)
+            'ur-PK': 'Achird', 'ps-PK': 'Achird', 'pa-PK': 'Achird', 
+            'sd-PK': 'Achird', 'fa-IR': 'Achird',
+        };
+
+        // UI Elements
+        const contentContainer = document.getElementById('content-container');
+        const chatHistory = document.getElementById('chat-history');
+        const touristMicBtn = document.getElementById('tourist-mic-btn');
+        const nativeMicBtn = document.getElementById('native-mic-btn');
+        const statusMessage = document.getElementById('status-message');
+        const touristLangSelect = document.getElementById('tourist-lang');
+        const nativeLangSelect = document.getElementById('native-lang');
+        
+        // Firebase State
+        let db, auth, userId = 'default-user-id';
+        let isAuthReady = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parwaaz-link';
+        
+        // App State
+        let isProcessing = false;
+        let isRecognitionActive = false;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        
+        // Journal/Learning State
+        let unsubscribeJournal = null;
+        let unsubscribeLearn = null;
+        
+        // Detected Language State (for UI updates)
+        let lastDetectedTouristLang = 'en-US';
+        let lastDetectedNativeLang = 'ur-PK';
+
+        // --- FIREBASE INITIALIZATION ---
+
+        async function initFirebase() {
+            try {
+                const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, getFirestore } = window.firebaseModules;
+                
+                // setLogLevel('Debug'); // Uncomment to see Firebase logs
+
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+                if (!firebaseConfig) {
+                    throw new Error("Firebase configuration is missing.");
+                }
+
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authenticate
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                userId = auth.currentUser.uid;
+                isAuthReady = true;
+                console.log("Firebase initialized. User ID:", userId);
+
+                // Start listening to data once authenticated
+                if (document.querySelector('.tab-button.active').dataset.view === 'journal') {
+                     loadJournalEntries();
+                }
+                if (document.querySelector('.tab-button.active').dataset.view === 'learn') {
+                     loadLearningData();
+                }
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                setStatus('Critical Error: Could not initialize Firebase/Auth. Data saving will not work.', true);
+                isAuthReady = false;
+            }
+        }
+        
+        // --- JOURNAL (FIRESTORE) FUNCTIONS ---
+
+        function getJournalCollectionRef() {
+            if (!isAuthReady) throw new Error("Firebase not ready.");
+            // Private data path: /artifacts/{appId}/users/{userId}/{collectionName}
+            return window.firebaseModules.collection(db, `artifacts/${appId}/users/${userId}/conversations`);
+        }
+
+        async function saveConversation(role, original, translated, touristLang, nativeLang) {
+            try {
+                const { addDoc, serverTimestamp } = window.firebaseModules;
+                const conversation = {
+                    role,
+                    original,
+                    translated,
+                    touristLang,
+                    nativeLang,
+                    timestamp: serverTimestamp() // Use Firestore timestamp
+                };
+                await addDoc(getJournalCollectionRef(), conversation);
+                console.log("Conversation saved to journal.");
+            } catch (error) {
+                console.error("Failed to save conversation to Firestore:", error);
+            }
+        }
+        
+        function loadJournalEntries() {
+            if (!isAuthReady) {
+                document.getElementById('journal-loading-status').textContent = 'Please wait for application to connect to the server...';
+                return;
+            }
+
+            if (unsubscribeJournal) unsubscribeJournal(); // Stop previous listener
+
+            try {
+                const { query, orderBy, onSnapshot } = window.firebaseModules;
+                const q = query(getJournalCollectionRef(), orderBy("timestamp", "desc"));
+                
+                unsubscribeJournal = onSnapshot(q, (snapshot) => {
+                    const journalList = document.getElementById('journal-list');
+                    journalList.innerHTML = '';
+                    
+                    if (snapshot.empty) {
+                        journalList.innerHTML = '<p class="text-center text-gray-500 italic">No conversations saved yet.</p>';
+                        return;
+                    }
+
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const entry = createJournalEntryElement(data, doc.id);
+                        journalList.appendChild(entry);
+                    });
+                }, (error) => {
+                    console.error("Error listening to journal:", error);
+                    document.getElementById('journal-loading-status').textContent = 'Error loading entries. Check console for details.';
+                });
+
+            } catch (error) {
+                console.error("Error setting up journal listener:", error);
+            }
+        }
+
+        function createJournalEntryElement(data, docId) {
+            const isTourist = data.role === 'tourist';
+            // Determine if the *translated* text needs RTL/Nastaliq class (which is the primary text the user spoke in)
+            const isPrimaryRTL = ['ur-PK', 'ps-PK', 'pa-PK', 'sd-PK', 'fa-IR'].includes(isTourist ? data.nativeLang : data.touristLang);
+            const primaryLangClass = isPrimaryRTL ? 'native-text-urdu' : '';
+            
+            const timestamp = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleString() : 'N/A';
+            const element = document.createElement('div');
+            element.className = 'bg-white p-4 rounded-xl shadow-md border-t-4 ' + (isTourist ? 'border-blue-500' : 'border-emerald-500');
+            element.dataset.docId = docId;
+
+            element.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <p class="text-sm font-medium text-gray-400">${timestamp}</p>
+                    <button class="text-red-500 hover:text-red-700" title="Delete entry" onclick="deleteJournalEntry('${docId}')">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-400 uppercase">${data.role} (${LANG_MAP[data.touristLang] || data.touristLang} ➡️ ${LANG_MAP[data.nativeLang] || data.nativeLang})</p>
+                <div class="mt-2">
+                    <p class="text-gray-900 font-semibold">Original (${LANG_MAP[isTourist ? data.touristLang : data.nativeLang] || 'Unknown'}):</p>
+                    <p class="text-gray-700 italic text-sm">${data.original}</p>
+                </div>
+                <div class="mt-2">
+                    <p class="text-gray-900 font-semibold">Translation (${LANG_MAP[isTourist ? data.nativeLang : data.touristLang] || 'Unknown'}):</p>
+                    <p class="text-lg font-bold text-gray-800 ${primaryLangClass}">${data.translated}</p>
+                </div>
+            `;
+            return element;
+        }
+
+        function deleteJournalEntry(docId) {
+            const confirmed = window.confirm("Are you sure you want to delete this conversation entry?");
+            if (!confirmed) return;
+
+            try {
+                const { doc, deleteDoc } = window.firebaseModules;
+                const docRef = doc(getJournalCollectionRef(), docId);
+                deleteDoc(docRef);
+                console.log("Entry deleted:", docId);
+            } catch (error) {
+                console.error("Failed to delete entry:", error);
+                setStatus('Failed to delete journal entry.', true);
+            }
+        }
+
+        function confirmClearJournal() {
+            const confirmed = window.confirm("Are you sure you want to delete ALL conversation entries?");
+            if (!confirmed) return;
+
+            try {
+                const { writeBatch, getDocs } = window.firebaseModules;
+                // Fetch all documents to delete them in a batch
+                getDocs(getJournalCollectionRef()).then(snapshot => {
+                    const batch = writeBatch(db);
+                    snapshot.docs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    return batch.commit();
+                }).then(() => {
+                    console.log("All journal entries deleted successfully.");
+                    setStatus('All journal entries cleared.', false);
+                });
+            } catch (error) {
+                console.error("Failed to clear journal:", error);
+                setStatus('Failed to clear journal entries.', true);
+            }
+        }
+
+
+        // --- LEARNING (FIRESTORE) FUNCTIONS ---
+        
+        function getLearningDocRef() {
+            if (!isAuthReady) throw new Error("Firebase not ready.");
+            // Document path: /artifacts/{appId}/users/{userId}/learning/progress
+            return window.firebaseModules.doc(db, `artifacts/${appId}/users/${userId}/learning/progress`);
+        }
+
+        async function loadLearningData() {
+            if (!isAuthReady) return;
+            
+            if (unsubscribeLearn) unsubscribeLearn();
+
+            try {
+                const { onSnapshot } = window.firebaseModules;
+                const docRef = getLearningDocRef();
+
+                unsubscribeLearn = onSnapshot(docRef, (docSnapshot) => {
+                    const data = docSnapshot.exists() ? docSnapshot.data() : {
+                        streak: 0,
+                        lastCompleted: null,
+                        completedLessons: []
+                    };
+                    updateLearningUI(data);
+                }, (error) => {
+                    console.error("Error listening to learning data:", error);
+                });
+            } catch (error) {
+                console.error("Error setting up learning listener:", error);
+            }
+        }
+
+        function updateLearningUI(data) {
+            const today = new Date().toISOString().split('T')[0];
+            let currentStreak = data.streak || 0;
+            let lastCompleted = data.lastCompleted;
+            let completedLessons = data.completedLessons || [];
+
+            document.getElementById('streak-counter').textContent = currentStreak;
+            document.getElementById('last-completed-date').textContent = lastCompleted || 'Never';
+
+            // Update lesson cards
+            document.querySelectorAll('#lesson-cards-container button').forEach(button => {
+                const lessonId = button.dataset.lessonId;
+                const completedSpan = button.nextElementSibling;
+                
+                // button.disabled = completedLessons.includes(lessonId) && lastCompleted === today;
+                // Only disable if the lesson was completed *today*
+                const isCompletedToday = completedLessons.includes(lessonId) && lastCompleted === today;
+                
+                button.disabled = isCompletedToday;
+                button.textContent = isCompletedToday ? 'Completed Today' : 'Mark Complete';
+                completedSpan.classList.toggle('hidden', !isCompletedToday);
+            });
+        }
+        
+        async function completeLesson(button) {
+            if (!isAuthReady) {
+                setStatus('Authentication not ready. Please wait.', true);
+                return;
+            }
+            
+            try {
+                const lessonId = button.dataset.lessonId;
+                const { getDoc, setDoc } = window.firebaseModules;
+                const docRef = getLearningDocRef();
+                const today = new Date().toISOString().split('T')[0];
+                
+                const docSnap = await getDoc(docRef);
+                let data = docSnap.exists() ? docSnap.data() : { streak: 0, lastCompleted: null, completedLessons: [] };
+
+                let currentStreak = data.streak || 0;
+                let lastCompleted = data.lastCompleted;
+                let completedLessons = data.completedLessons || [];
+
+                // Check if lesson is already completed today
+                if (completedLessons.includes(lessonId) && lastCompleted === today) {
+                    setStatus('This lesson is already completed today.', false);
+                    return;
+                }
+
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+                
+                let lessonWasCompleted = completedLessons.includes(lessonId);
+                
+                // If it's a new day, reset completed lessons and check streak
+                if (lastCompleted !== today) {
+                    completedLessons = [lessonId]; // Start with the current lesson
+                    
+                    if (lastCompleted === yesterdayStr) {
+                        currentStreak += 1; // Increment streak
+                    } else {
+                        currentStreak = 1; // Start new streak
+                    }
+                } else {
+                    // Same day, just add the new lesson if it wasn't done before
+                    if (!lessonWasCompleted) {
+                        completedLessons.push(lessonId);
+                    } else {
+                        // This case should not be reached due to the initial check, but good for safety
+                        setStatus('Lesson already completed today.', false);
+                        return;
+                    }
+                }
+                
+                // Save new state
+                const newProgress = {
+                    streak: currentStreak,
+                    lastCompleted: today,
+                    completedLessons: completedLessons
+                };
+
+                await setDoc(docRef, newProgress, { merge: true });
+                setStatus('Lesson marked complete! Streak updated.', false);
+
+            } catch (error) {
+                console.error("Failed to complete lesson:", error);
+                setStatus('Failed to save learning progress.', true);
+            }
+        }
+        
+        // --- UI & View Management ---
+
+        function showView(viewId) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => view.classList.add('hidden'));
+            // Show the requested view
+            document.getElementById(viewId + '-view').classList.remove('hidden');
+
+            // Update tab styles
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-button[data-view="${viewId}"]`).classList.add('active');
+            
+            // Manage listeners for views that need them
+            if (viewId === 'journal') {
+                loadJournalEntries();
+            } else if (unsubscribeJournal) {
+                unsubscribeJournal();
+            }
+            
+            if (viewId === 'learn') {
+                loadLearningData();
+            } else if (unsubscribeLearn) {
+                unsubscribeLearn();
+            }
+        }
+        
+        function updateDetectedLanguageUI(role, langCode) {
+            const label = document.getElementById(`current-${role}-label`);
+            const langName = LANG_MAP[langCode] || 'Unknown';
+            const display = langCode === 'auto-detect' ? 'Auto-Detect' : `${langName} (Detected)`;
+
+            if (role === 'tourist') {
+                lastDetectedTouristLang = langCode;
+            } else {
+                lastDetectedNativeLang = langCode;
+            }
+            
+            label.textContent = display;
+            label.classList.toggle('bg-yellow-100', langCode !== 'auto-detect');
+            label.classList.toggle('px-2', langCode !== 'auto-detect');
+            label.classList.toggle('rounded-full', langCode !== 'auto-detect');
+        }
+
+        function updateTouristUi() {
+            const langCode = touristLangSelect.value;
+            const langName = LANG_MAP[langCode] || 'English';
+
+            document.getElementById('current-tourist-label').textContent = langName;
+            
+            const btnText = langCode === 'auto-detect' ? 'Speak (Auto-Detect)' : `Speak in ${langName.split(' ')[0]}`;
+            document.getElementById('tourist-mic-text').textContent = btnText;
+            
+            // Reset detected state if manual language is selected
+            if (langCode !== 'auto-detect') {
+                updateDetectedLanguageUI('tourist', langCode);
+            }
+        }
+        
+        function updateNativeUi() {
+            const langCode = nativeLangSelect.value;
+            const langName = LANG_MAP[langCode] || 'Urdu';
+            
+            document.getElementById('current-native-label').textContent = langName;
+            
+            const nativeTextElement = document.getElementById('native-mic-text');
+            let translatedText = "بات شروع کریں"; // Default Urdu for "Start Speaking"
+            
+            if (langCode === 'auto-detect') {
+                translatedText = 'Speak (Auto-Detect)';
+            } else if (langCode === 'ps-PK') translatedText = "خبرې پيل کړئ"; // Pashto
+            else if (langCode === 'pa-PK') translatedText = "ਬੋਲਣਾ ਸ਼ੁਰੂ ਕਰੋ"; // Punjabi
+            else if (langCode === 'sd-PK') translatedText = "ڳالھائڻ شروع ڪريو"; // Sindhi
+            else if (langCode === 'fa-IR') translatedText = "شروع به صحبت کنید"; // Farsi
+
+            nativeTextElement.textContent = translatedText;
+            nativeTextElement.classList.toggle('native-text-urdu', ['ur-PK', 'ps-PK', 'pa-PK', 'sd-PK', 'fa-IR'].includes(langCode));
+
+            // Reset detected state if manual language is selected
+            if (langCode !== 'auto-detect') {
+                updateDetectedLanguageUI('native', langCode);
+            }
+        }
+
+        // --- MOCK NAVIGATION & AR LOGIC ---
+
+        function searchRides() {
+            const destination = document.getElementById('destination-input').value;
+            const resultsDiv = document.getElementById('rides-results');
+            
+            if (!destination.trim()) {
+                resultsDiv.innerHTML = '<p class="text-red-500 font-semibold">Please enter a destination first.</p>';
+                return;
+            }
+
+            const mockRides = [
+                { name: 'Careem Go', icon: '<i class="fa-solid fa-car text-green-500"></i>', price: Math.floor(Math.random() * 500) + 200, time: Math.floor(Math.random() * 10) + 3 },
+                { name: 'Uber Mini', icon: '<i class="fa-solid fa-car text-indigo-500"></i>', price: Math.floor(Math.random() * 600) + 300, time: Math.floor(Math.random() * 12) + 5 },
+                { name: 'Careem Rickshaw', icon: '<i class="fa-solid fa-person-rickshaw text-amber-500"></i>', price: Math.floor(Math.random() * 300) + 150, time: Math.floor(Math.random() * 15) + 8 },
+            ];
+
+            resultsDiv.innerHTML = `<h4 class="text-lg font-bold text-gray-700 mb-2">Results for: ${destination}</h4>`;
+
+            mockRides.sort((a, b) => a.price - b.price);
+
+            mockRides.forEach(ride => {
+                const p = document.createElement('p');
+                p.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border-l-4 border-gray-300 shadow-sm';
+                p.innerHTML = `
+                    <span class="font-semibold text-gray-800 flex items-center">${ride.icon} <span class="ml-2">${ride.name}</span></span>
+                    <span class="text-sm text-gray-600">${ride.time} mins away</span>
+                    <span class="font-extrabold text-lg text-emerald-700">PKR ${ride.price}</span>
+                `;
+                resultsDiv.appendChild(p);
+            });
+        }
+
+        function simulateArScan() {
+            const outputDiv = document.getElementById('ar-scan-output');
+            const mockData = [
+                { type: "Sign", name: "Road Sign: Lahore", info: "The sign indicates directions to historical sites. Red lettering often means Urdu/local script.", cultural: false },
+                { type: "Embroidery", name: "Balochi Dosh", info: "A traditional form of Balochi embroidery, known for its intricate mirror work and geometric patterns, often used on women's dresses and shawls. Each pattern tells a story of the region.", cultural: true },
+                { type: "Food Stall", name: "Samosa Vendor", info: "A common street food item. Samosas are savory, deep-fried pastry with spiced potatoes. Best eaten with chutney! Enjoy this cultural snack.", cultural: false },
+                { type: "Architecture", name: "Mughal Archway", info: "Indicates a structure from the Mughal Empire (16th-19th Century). Features include cusped arches, fine marble work, and calligraphic inscriptions.", cultural: true }
+            ];
+
+            const result = mockData[Math.floor(Math.random() * mockData.length)];
+
+            outputDiv.innerHTML = `
+                <p class="text-xl font-bold text-gray-800">${result.name}</p>
+                <p class="text-sm text-gray-500 mb-2">Category: ${result.type}</p>
+                <p class="text-gray-700">${result.info}</p>
+            `;
+            
+            if (result.cultural) {
+                outputDiv.classList.add('border-l-4', 'border-amber-500');
+            } else {
+                outputDiv.classList.remove('border-l-4', 'border-amber-500');
+            }
+        }
+
+
+        // --- UTILITY FUNCTIONS (Translation/TTS/STT/Detection) ---
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = pcm16.length * bytesPerSample;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            let offset = 0;
+
+            function writeString(s) {
+                for (let i = 0; i < s.length; i++, offset++) {
+                    view.setUint8(offset, s.charCodeAt(i));
+                }
+            }
+
+            // RIFF chunk
+            writeString('RIFF');
+            view.setUint32(offset, 36 + dataSize, true); offset += 4;
+            writeString('WAVE');
+
+            // FMT chunk
+            writeString('fmt ');
+            view.setUint32(offset, 16, true); offset += 4;      // Chunk size (16 for PCM)
+            view.setUint16(offset, 1, true); offset += 2;      // Format tag (1 for PCM)
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, byteRate, true); offset += 4;
+            view.setUint16(offset, blockAlign, true); offset += 2;
+            view.setUint16(offset, 16, true); offset += 2;      // Bits per sample (16)
+
+            // DATA chunk
+            writeString('data');
+            view.setUint32(offset, dataSize, true); offset += 4;
+            
+            // Write PCM data
+            const pcmBytes = new Uint8Array(pcm16.buffer);
+            for (let i = 0; i < pcmBytes.length; i++, offset++) {
+                view.setUint8(offset, pcmBytes[i]);
+            }
+            
+            return new Blob([view], { type: 'audio/wav' });
+        }
+        
+        async function playAudio(audioData, mimeType, element) {
+            try {
+                if (!mimeType || !mimeType.startsWith("audio/")) {
+                    throw new Error("Invalid or missing audio MIME type.");
+                }
+                
+                const rateMatch = mimeType.match(/rate=(\d+)/);
+                const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+
+                const pcmData = base64ToArrayBuffer(audioData);
+                const pcm16 = new Int16Array(pcmData);
+
+                const wavBlob = pcmToWav(pcm16, sampleRate);
+                
+                const audioUrl = URL.createObjectURL(wavBlob);
+                const audio = new Audio(audioUrl);
+                
+                // Add a play icon/indicator to the element
+                element.querySelector('.play-icon').classList.remove('hidden');
+                
+                // Re-play audio on click
+                element.addEventListener('click', () => {
+                    audio.play();
+                });
+                
+                audio.addEventListener('play', () => {
+                    element.classList.add('ring-4', 'ring-opacity-50', 'ring-yellow-400');
+                    element.style.cursor = 'wait';
+                });
+                
+                audio.addEventListener('ended', () => {
+                    element.classList.remove('ring-4', 'ring-opacity-50', 'ring-yellow-400');
+                    element.style.cursor = 'pointer';
+                });
+                
+                // Play immediately after generation
+                audio.play();
+
+            } catch (error) {
+                console.error("Error playing audio:", error);
+                setStatus('Audio Playback Error: Could not generate or play speech.', true);
+            }
+        }
+        
+        async function fetchWithRetry(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i === retries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function detectLanguage(text) {
+            const userQuery = `Identify the BCP-47 language code for the following text. Respond ONLY with the language code (e.g., "en-US", "fr-FR", "ur-PK"). Only use codes from this list: ${Object.keys(LANG_MAP).filter(c => c !== 'auto-detect').join(', ')}. If unsure, default to "en-US". Text: "${text}"`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: "You are a direct, precise, and literal language detection engine. Only output the BCP-47 language code, nothing else." }]
+                },
+            };
+
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+
+            const response = await fetchWithRetry(API_TEXT_URL, options);
+            const result = await response.json();
+            
+            let detectedLangCode = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/['"]+/g, '');
+
+            if (!detectedLangCode || !LANG_MAP[detectedLangCode]) {
+                console.warn(`Language detection failed or returned unknown code: ${detectedLangCode}. Defaulting to en-US.`);
+                detectedLangCode = 'en-US';
+            }
+            return detectedLangCode;
+        }
+
+
+        async function translateText(text, sourceLangCode, targetLangCode) {
+            const sourceLangName = LANG_MAP[sourceLangCode] || sourceLangCode;
+            const targetLangName = LANG_MAP[targetLangCode] || targetLangCode;
+            
+            const userQuery = `Translate the following text from ${sourceLangName} to ${targetLangName}. Only return the translated text, nothing else: "${text}"`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: "You are a direct, precise, and literal language translation engine. Only output the requested translation." }]
+                },
+            };
+
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+
+            const response = await fetchWithRetry(API_TEXT_URL, options);
+            const result = await response.json();
+            
+            const translatedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+            if (!translatedText) {
+                throw new Error("API returned no translation result.");
+            }
+            return translatedText;
+        }
+
+        async function generateAudio(text, langCode) {
+            const voice = VOICE_MAP[langCode] || 'Kore'; 
+            
+            const payload = {
+                contents: [{ parts: [{ text: text }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: voice }
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+
+            const response = await fetchWithRetry(API_TTS_URL, options);
+            const result = await response.json();
+            
+            const part = result?.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+
+            if (!audioData || !mimeType) {
+                console.error("TTS API response missing audio data:", result);
+                throw new Error("TTS failed to generate audio for the text.");
+            }
+            return { audioData, mimeType };
+        }
+
+        function addChatBubble(role, originalText, translatedText, nativeLangCode) {
+            const isTourist = role === 'tourist';
+            const bubble = document.createElement('div');
+            bubble.className = `flex ${isTourist ? 'justify-start' : 'justify-end'}`;
+
+            const bubbleContent = document.createElement('div');
+            bubbleContent.classList.add('chat-bubble', isTourist ? 'tourist-bubble' : 'native-bubble', 'cursor-pointer');
+            
+            const primaryText = isTourist ? translatedText : originalText;
+            const secondaryText = isTourist ? originalText : translatedText;
+            
+            const roleLabel = isTourist ? 'Tourist' : 'Native';
+            
+            // Check if the primary (translated) text needs Nastaliq font (Urdu, Pashto, Farsi, Sindhi, Punjabi in Nastaliq for right-to-left)
+            const isPrimaryNativeRTL = ['ur-PK', 'ps-PK', 'pa-PK', 'sd-PK', 'fa-IR'].includes(isTourist ? nativeLangCode : lastDetectedTouristLang); // Use the target/detected lang for the primary bubble text
+            const primaryLanguageClass = isPrimaryNativeRTL ? 'native-text-urdu' : ''; 
+            
+            // Check if the secondary (original) text needs Nastaliq font (Only for Native's original speech)
+            const secondaryLanguageClass = (!isTourist && ['ur-PK', 'ps-PK', 'pa-PK', 'sd-PK', 'fa-IR'].includes(lastDetectedNativeLang)) ? 'native-text-urdu' : ''; 
+
+            bubbleContent.innerHTML = `
+                <div class="flex items-center space-x-2 ${isTourist ? '' : 'flex-row-reverse space-x-reverse'}">
+                    <i class="fa-solid ${isTourist ? 'fa-user-tag' : 'fa-people-roof'} text-white w-4 h-4"></i>
+                    <span class="text-xs font-light opacity-80">${roleLabel}</span>
+                </div>
+                <!-- Primary Text (The one spoken out loud) -->
+                <p class="mt-1 ${primaryLanguageClass}">
+                    <span class="font-semibold text-lg">${primaryText}</span>
+                </p>
+                <!-- Secondary Text (The original spoken input) -->
+                <p class="mt-1 text-sm opacity-90 italic ${secondaryLanguageClass}">
+                    ${secondaryText}
+                </p>
+                <div class="mt-2 text-right">
+                    <i class="fa-solid fa-play w-4 h-4 ml-auto text-white play-icon hidden"></i>
+                </div>
+            `;
+            
+            bubble.appendChild(bubbleContent);
+            chatHistory.appendChild(bubble);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            return bubbleContent;
+        }
+        
+        function setStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-yellow-100', 'text-yellow-800');
+            if (isError) {
+                statusMessage.classList.add('bg-red-100', 'text-red-800');
+            } else {
+                statusMessage.classList.add('bg-yellow-100', 'text-yellow-800');
+            }
+        }
+
+        function clearStatus() {
+            statusMessage.classList.add('hidden');
+        }
+
+        function toggleProcessing(isBusy, currentBtn) {
+            isProcessing = isBusy;
+            const otherBtn = currentBtn === touristMicBtn ? nativeMicBtn : touristMicBtn;
+            
+            touristMicBtn.disabled = isBusy && currentBtn !== touristMicBtn;
+            nativeMicBtn.disabled = isBusy && currentBtn !== nativeMicBtn;
+            
+            if (isBusy) {
+                 otherBtn.disabled = true;
+            } else {
+                 touristMicBtn.disabled = false;
+                 nativeMicBtn.disabled = false;
+            }
+            
+            // The STT onend handler manages the UI for the *active* button
+        }
+
+        // --- SPEECH RECOGNITION (STT) Logic ---
+
+        function startSpeechRecognition(langCode, callback, btn, defaultText) {
+            if (isRecognitionActive || !SpeechRecognition) {
+                if (recognition) recognition.stop(); // Stop if active
+                return;
+            }
+            
+            // Fallback language code for browser STT if auto-detect is selected
+            let sttLangCode = langCode;
+            if (langCode === 'auto-detect') {
+                // Heuristic fallback: English for Tourist, Urdu for Native
+                const role = btn === touristMicBtn ? 'tourist' : 'native';
+                sttLangCode = role === 'tourist' ? 'en-US' : 'ur-PK';
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = sttLangCode;
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            isRecognitionActive = true;
+            btn.classList.remove('bg-blue-600', 'bg-emerald-600', 'hover:bg-blue-700', 'hover:bg-emerald-700');
+            btn.classList.add('bg-red-500', 'mic-recording');
+            btn.querySelector('span').textContent = 'Listening... Speak Now';
+            
+            // Disable the other button
+            const otherBtn = btn === touristMicBtn ? nativeMicBtn : touristMicBtn;
+            otherBtn.disabled = true;
+            
+            setStatus(`Ready to listen in ${LANG_MAP[sttLangCode]}. Please speak clearly.`);
+
+            recognition.onresult = (event) => {
+                const result = event.results[0][0].transcript;
+                callback(result);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech Recognition Error:', event.error);
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    setStatus(`Speech input failed: ${event.error}. Ensure mic access is granted.`, true);
+                } else if (event.error === 'no-speech') {
+                    setStatus('No speech detected. Please try again.', true);
+                }
+            };
+
+            recognition.onend = () => {
+                isRecognitionActive = false;
+                btn.classList.remove('bg-red-500', 'mic-recording');
+                
+                if (btn === touristMicBtn) {
+                    btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                } else {
+                    btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                }
+                
+                btn.querySelector('span').textContent = defaultText;
+                
+                // Re-enable the other button unless processing is running
+                if (!isProcessing) {
+                    touristMicBtn.disabled = false;
+                    nativeMicBtn.disabled = false;
+                    clearStatus();
+                }
+            };
+            
+            recognition.start();
+        }
+
+        // --- Core Translation Functions ---
+
+        function startTouristSpeech() {
+            const langCode = touristLangSelect.value;
+            const defaultText = document.getElementById('tourist-mic-text').textContent;
+            startSpeechRecognition(langCode, handleTouristSpeechInput, touristMicBtn, defaultText);
+        }
+
+        async function handleTouristSpeechInput(originalText) {
+            if (!originalText) return; 
+
+            let sourceLangCode = touristLangSelect.value;
+            let targetLangCode = nativeLangSelect.value;
+            
+            toggleProcessing(true, touristMicBtn);
+            
+            try {
+                // 1. Auto-Detect Source Language if needed
+                if (sourceLangCode === 'auto-detect') {
+                    setStatus(`Transcribed: "${originalText}". Auto-detecting Tourist language...`);
+                    sourceLangCode = await detectLanguage(originalText);
+                    updateDetectedLanguageUI('tourist', sourceLangCode);
+                }
+
+                // 2. Auto-Detect Target Language if needed
+                if (targetLangCode === 'auto-detect') {
+                    // For conversational flow, if native is auto-detect, we default to URDU
+                    targetLangCode = 'ur-PK'; 
+                    updateDetectedLanguageUI('native', targetLangCode);
+                }
+                
+                setStatus(`Translating from ${LANG_MAP[sourceLangCode]} to ${LANG_MAP[targetLangCode]}...`);
+
+                // 3. Translate Text (Tourist -> Native)
+                const translatedNativeText = await translateText(originalText, sourceLangCode, targetLangCode);
+                
+                // 4. Generate Audio (Native Speech)
+                const { audioData, mimeType } = await generateAudio(translatedNativeText, targetLangCode);
+                
+                // 5. Update UI, Play Audio, and Save
+                const bubble = addChatBubble('tourist', originalText, translatedNativeText, targetLangCode);
+                await playAudio(audioData, mimeType, bubble);
+                await saveConversation('tourist', sourceLangCode, translatedNativeText, sourceLangCode, targetLangCode);
+
+                clearStatus();
+
+            } catch (error) {
+                console.error("Tourist translation failed:", error);
+                setStatus(`Tourist translation failed: ${error.message}`, true);
+            } finally {
+                toggleProcessing(false, touristMicBtn);
+            }
+        }
+
+        function startNativeSpeech() {
+            const langCode = nativeLangSelect.value;
+            const defaultText = document.getElementById('native-mic-text').textContent;
+            startSpeechRecognition(langCode, handleNativeSpeechInput, nativeMicBtn, defaultText);
+        }
+
+        async function handleNativeSpeechInput(originalText) {
+            if (!originalText) return; 
+            
+            let sourceLangCode = nativeLangSelect.value;
+            let targetLangCode = touristLangSelect.value;
+
+            toggleProcessing(true, nativeMicBtn);
+            
+            try {
+                // 1. Auto-Detect Source Language if needed
+                if (sourceLangCode === 'auto-detect') {
+                    setStatus(`Transcribed: "${originalText}". Auto-detecting Native language...`);
+                    sourceLangCode = await detectLanguage(originalText);
+                    updateDetectedLanguageUI('native', sourceLangCode);
+                }
+                
+                // 2. Auto-Detect Target Language if needed
+                if (targetLangCode === 'auto-detect') {
+                    // For conversational flow, if tourist is auto-detect, we default to ENGLISH
+                    targetLangCode = 'en-US';
+                    updateDetectedLanguageUI('tourist', targetLangCode);
+                }
+
+                setStatus(`Translating from ${LANG_MAP[sourceLangCode]} to ${LANG_MAP[targetLangCode]}...`);
+                
+                // 3. Translate Text (Native -> Tourist)
+                const translatedTouristText = await translateText(originalText, sourceLangCode, targetLangCode);
+                
+                // 4. Generate Audio (Tourist Speech)
+                const { audioData, mimeType } = await generateAudio(translatedTouristText, targetLangCode);
+                
+                // 5. Update UI, Play Audio, and Save
+                const bubble = addChatBubble('native', originalText, translatedTouristText, sourceLangCode);
+                await playAudio(audioData, mimeType, bubble);
+                await saveConversation('native', originalText, translatedTouristText, targetLangCode, sourceLangCode);
+
+                clearStatus();
+
+            } catch (error) {
+                console.error("Native translation failed:", error);
+                setStatus(`Native translation failed: ${error.message}`, true);
+            } finally {
+                toggleProcessing(false, nativeMicBtn);
+            }
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            initFirebase();
+            // Set initial detected languages to the default selected languages
+            lastDetectedTouristLang = touristLangSelect.value;
+            lastDetectedNativeLang = nativeLangSelect.value;
+            
+            updateTouristUi();
+            updateNativeUi();
+            showView('translator'); // Start on the translator view
+        }
+    </script>
+</body>
+</html>
